@@ -1,0 +1,10 @@
+{
+    "compilerOptions": {
+        "module": "ESNext",
+        "target": "ES2020",
+        "types": ["./lib/webgpu.d.ts", "./lib/globals.d.ts"],
+        "checkJs": true,
+        "noImplicitAny": true,
+    },
+    "include": ["./*.js","./src/*.js"],
+}

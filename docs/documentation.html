@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FeatureLego WebGPU Implementation - Visualization Project</title>
+    <style>
+        :root {
+            --primary-color: #0056b3;
+            --text-color: #333;
+            --bg-color: #fff;
+            --section-bg: #f8f9fa;
+        }
+
+        body {
+            font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background: #222;
+            color: #fff;
+            padding: 2rem 0;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+
+        header p {
+            font-size: 1.2rem;
+            opacity: 0.8;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        section {
+            margin-bottom: 3rem;
+        }
+
+        h2 {
+            color: var(--primary-color);
+            border-bottom: 2px solid #eee;
+            padding-bottom: 0.5rem;
+            margin-top: 0;
+        }
+
+        h3 {
+            color: #444;
+            margin-bottom: 0.5rem;
+        }
+
+        .teaser-image {
+            width: 100%;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 */
+            height: 0;
+            background: #000;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .video-container video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .pipeline-step {
+            background: var(--section-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        code {
+            background: #eee;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: Consolas, monospace;
+        }
+
+        .params-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        .params-table th, .params-table td {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .params-table th {
+            background-color: var(--section-bg);
+        }
+
+        .btn {
+            display: inline-block;
+            background: var(--primary-color);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #004494;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            background: #222;
+            color: #aaa;
+            margin-top: 4rem;
+        }
+
+        footer a {
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="container">
+        <h1>FeatureLego: WebGPU Implementation</h1>
+        <p>Interactive Volume Exploration using Exhaustive Clustering of Super-Voxels</p>
+        <p style="font-size: 0.9rem; margin-top: 1rem;">Course: Visualization 2 &bull; TU Wien &bull; 2025</p>
+    </div>
+</header>
+
+<div class="container">
+    
+    <!-- Abstract / Goal -->
+    <section id="goal">
+        <h2>Project Goal</h2>
+        <p>
+            The goal of this project was to implement the <strong>FeatureLego</strong> framework (Jadhav et al., 2019) using modern WebGPU and D3.js
+            FeatureLego is a volume exploration approach that partitions a volumetric dataset into semantic regions ("Legos") that users can interactively select and group. 
+            This implementation leverages <strong>WebGPU</strong> for high-performance volume rendering and clustering, and <strong>D3.js</strong> for the interactive meta-cluster tree visualization.
+        </p>
+        <img src="screenshot.png" alt="FeatureLego System Interface" class="teaser-image" onerror="this.src='https://via.placeholder.com/900x400?text=System+Screenshot+(teaser.jpg)'">
+    </section>
+
+    <!-- Demo Video -->
+    <section id="demo">
+        <h2>Demo Video</h2>
+        <div class="video-container">
+            <video controls>
+                <source src="video_demo.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+    </section>
+
+    <!-- Visualization Technique -->
+    <section id="technique">
+        <h2>Visualization & Algorithms</h2>
+        <p>
+            The core idea is to allow users to select "features" directly.
+            The pipeline consists of four major stages, all implemented in JavaScript and WGSL:
+        </p>
+
+        <div class="pipeline-step">
+            <h3>1. Super-Voxel Generation (SLIC 3D)</h3>
+            <p>
+                The volume is over-segmented into compact, perceptually homogeneous super-voxels using <strong>SLIC (Simple Linear Iterative Clustering)</strong> adapted for 3D. 
+                This reduces the complexity of the dataset from millions of voxels to a few thousand super-voxels (graph nodes).
+            </p>
+        </div>
+
+        <div class="pipeline-step">
+            <h3>2. Exhaustive FH Clustering (Approximation)</h3>
+            <p>
+                We use the <strong>Felzenszwalb-Huttenlocher (FH)</strong> graph-based clustering algorithm. 
+                Instead of guessing a single parameter <em>k</em>, the system runs an "exhaustive" parameter scan (sampling logarithmic steps of <em>k</em>).
+                Stable regions that persist across multiple scales are identified and stored as candidate features.
+            </p>
+        </div>
+
+        <div class="pipeline-step">
+            <h3>3. Meta-Cluster Tree Construction</h3>
+            <p>
+                To organize the hundreds of overlapping regions generated by the exhaustive step, we build a <strong>Meta-Cluster Tree</strong>.
+                <ul>
+                    <li><strong>Similarity Graph:</strong> Regions are connected based on Jaccard distance (overlap).</li>
+                    <li><strong>Hierarchy:</strong> A Minimum Spanning Tree (MST) is built using a Reverse-Delete strategy to group highly similar regions into "Meta-Clusters".</li>
+                </ul>
+            </p>
+        </div>
+
+        <div class="pipeline-step">
+            <h3>4. Linked Views</h3>
+            <p>
+                The system features two linked views:
+                <ul>
+                    <li><strong>3D View (WebGPU):</strong> A ray-marcher rendering the volume. Selected regions are highlighted using a dynamically generated mask texture.</li>
+                    <li><strong>Tree View (D3.js):</strong> A collapsible tree diagram representing the meta-cluster hierarchy. Clicking a node highlights the corresponding aggregate region in 3D.</li>
+                </ul>
+            </p>
+        </div>
+    </section>
+
+    <!-- Usage Guide -->
+    <section id="usage">
+        <h2>Usage Guide</h2>
+        <p>The application runs directly in a WebGPU-compatible browser (Chrome/Edge/Firefox Nightly).</p>
+
+        <h3>Interaction</h3>
+        <table class="params-table">
+            <thead>
+                <tr>
+                    <th>Action</th>
+                    <th>Result</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Left Mouse Drag</strong></td>
+                    <td>Rotate the volume in 3D space.</td>
+                </tr>
+                <tr>
+                    <td><strong>Click (Tree Node)</strong></td>
+                    <td>Select a region/meta-cluster. The 3D view updates to highlight this region.</td>
+                </tr>
+                <tr>
+                    <td><strong>Key '1'</strong></td>
+                    <td>Toggle/Cycle highlight intensity (mix factor between original volume and region mask).</td>
+                </tr>
+                <tr>
+                    <td><strong>Spacebar</strong></td>
+                    <td>Toggle "Show Only Highlight" (renders non-selected voxels as transparent).</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Parameters (GUI)</h3>
+        <p>A <code>dat.GUI</code> panel allows real-time adjustment of the clustering pipeline:</p>
+        <ul>
+            <li><strong>Dataset:</strong> Switch between loaded .vol files (Aneurism, Fuel, etc.).</li>
+            <li><strong>Max Branching:</strong> Controls the breadth of the meta-cluster tree.</li>
+            <li><strong>Highlight Intensity:</strong> Adjusts the intensity of the highlight effect.</li>
+            <li><strong>Show Only Highlight:</strong> Toggle to render only the selected region.</li>
+            <li><strong>Zoom:</strong> Adjust the zoom level of the 3D volume rendering.</li>
+        </ul>
+    </section>
+
+    <!-- Datasets -->
+    <section id="datasets">
+        <h2>Datasets</h2>
+        <p>
+            The project supports standard 8-bit raw volumetric datasets. The following datasets from the <a href="https://tc18.org/3D_images.html" target="_blank">TC18 3D Images Repository</a> are supported:
+        </p>
+        <ul>
+            <li><strong>Aneurism</strong> (256³): x-ray scan of the arteries of the right half of a human head.</li>
+            <li><strong>Fuel</strong> (64³): Simulated fuel data.</li>
+            <li><strong>Shockwave</strong> (64x64x512): Medical CT scan of a human head.</li>
+            <li><strong>Neghip</strong> (64³): Simulation of the spatial probability distribution of the electrons in a high potential protein molecule.</li>
+            <li><strong>Nucleon</strong> (41³): Simulated particle data.</li>
+            <li><strong>Silicium</strong> (98x34x34): Simulation of a silicium grid.</li>
+            <li><strong>Skull</strong> (256³): Medical x-ray of a human skull.</li>
+        </ul>
+    </section>
+
+    <!-- References -->
+    <section id="references">
+        <h2>References</h2>
+        <ul>
+            <li>
+                <strong>FeatureLego Paper:</strong> S. Jadhav, S. Nadeem and A. Kaufman (2019). 
+                <em>FeatureLego: Volume Exploration Using Exhaustive Clustering of Super-Voxels.</em> 
+                in IEEE Transactions on Visualization & Computer Graphics, vol. 25, no. 09, pp. 2725-2737, Sept. 2019, doi: 10.1109/TVCG.2018.2856744.
+
+            </li>
+            <li>
+                <strong>Datasets:</strong> <a href="https://tc18.org/3D_images.html">TC18 3D Images Repository</a>
+            </li>
+        </ul>
+    </section>
+
+    <div style="text-align: center;">
+        <a href="https://github.com/mellis27/WebLego" 
+        class="btn" 
+        target="_blank">
+        View on GitHub →
+        </a>
+    </div>
+
+</div>
+
+<footer>
+    <p>&copy; 2025 WebLego. Built with WebGPU, D3.js, and TypeScript.</p>
+</footer>
+
+</body>
+</html>

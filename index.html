@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FeatureLego WebGPU Explorer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background-color: #111;
+        color: white;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      /* Split Layout Container */
+      #app-container {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+      }
+
+      /* Left Panel: D3 Tree */
+      #tree-container {
+        width: 30%;
+        height: 100%;
+        overflow: auto; /* Scrollable */
+        background: #1a1a1a;
+        border-right: 1px solid #333;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.5);
+      }
+
+      /* Right Panel: WebGPU Viz */
+      #viz-container {
+        width: 70%;
+        height: 100%;
+        position: relative;
+        background: #000;
+      }
+
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        outline: none;
+      }
+
+      /* GUI Container (Moved inside right panel) */
+      #gui-container {
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 10;
+      }
+
+      /* --- D3 Tree Styles --- */
+      .node circle {
+        fill: #555;
+        stroke: #fff;
+        stroke-width: 1px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .node circle:hover {
+        stroke: #4facfe; /* Hover glow */
+        stroke-width: 3px;
+      }
+
+      /* Selected state (active meta-cluster) */
+      .node circle.selected {
+        fill: #ff4444 !important;
+        stroke: #ffd700 !important;
+        stroke-width: 3px;
+        r: 8px !important; /* Make it slightly bigger */
+      }
+
+      .node text {
+        font: 11px sans-serif;
+        fill: #ccc;
+        pointer-events: none;
+        text-shadow: 1px 1px 2px #000;
+      }
+
+      .link {
+        fill: none;
+        stroke: #444;
+        stroke-width: 1.5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app-container">
+      <!-- Left: Tree -->
+      <div id="tree-container"></div>
+
+      <!-- Right: Volume -->
+      <div id="viz-container">
+        <div id="gui-container"></div>
+
+        <canvas id="webgpu-canvas"></canvas>
+      </div>
+    </div>
+    
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Project Scripts -->
+    <script src="src/volumeLoader.js"></script>
+    <script src="src/slicManager.js"></script>
+    <script src="src/fhClustering.js"></script>
+    <script src="src/metaClustering.js"></script>
+
+    <!-- Shaders -->   
+    <script src="src/shaders/slic.js"></script>
+    <script src="src/shaders/volVis.js"></script>
+
+    <!-- New Tree Viz Script -->
+    <script src="src/treeVisualization.js"></script>
+
+    <!-- Main -->
+    <script src="src/main.js"></script>
+
+    <script>
+      const canvas = document.getElementById('webgpu-canvas');
+      const gui = new dat.GUI({ autoPlace: false });
+      document.getElementById('gui-container').appendChild(gui.domElement);
+
+      const main = new Main(gui, canvas);
+
+      function onWindowResize() {
+        const vizContainer = document.getElementById('viz-container');
+        canvas.width = vizContainer.clientWidth;
+        canvas.height = vizContainer.clientHeight;
+      }
+      window.addEventListener('resize', onWindowResize);
+      onWindowResize();
+
+      // Define how to update the tree visualization
+      main.onTreeChange = (root) => {
+        const container = document.getElementById('tree-container');
+        container.innerHTML = ''; // Clear previous tree
+        
+        new MetaClusterTreeViz(
+          "#tree-container", 
+          root, 
+          (node) => {
+            console.log("Tree clicked:", node);
+            if (main.highlightMetaCluster) {
+              main.highlightMetaCluster(node);
+            }
+          }
+        );
+      };
+      
+      main.start()
+        .then(() => {
+          console.log("Main initialized.");
+        })
+        .catch(err => console.error("Initialization Error:", err));
+    </script>
+  </body>
+</html>
