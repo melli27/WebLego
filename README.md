@@ -1,7 +1,14 @@
-# WebLego: Visvu-2025-Schiebel
+## WebLego: Visvu-2025-Schiebel
 
 An interactive, browser-based system for exploring large 3D volumetric datasets using GPU-accelerated supervoxel segmentation, exhaustive graph clustering, and hierarchical meta-clustering.
 The project is inspired by the paper “FeatureLego: Volume Exploration Using Exhaustive Clustering of Super-Voxels.”
+
+## Demo & Documentation
+
+- 🌐 **[Live Demo](https://melli27.github.io/WebLego/)**
+- 📄 **[Documentation](https://melli27.github.io/WebLego/docs/documentation.html)** – Website with detailed explanation of the pipeline, algorithms, and UI
+  
+  ![Screenshot](docs/screenshot.png)
 
 ## Project Goal & Visualization Technique
 
@@ -73,7 +80,6 @@ Open:
   ------------ ----------------------------
   Mouse Drag   Rotate volume
   Tree Click   Highlight region
-
 
 ## References
 
